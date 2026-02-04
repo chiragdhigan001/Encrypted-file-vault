@@ -8,11 +8,16 @@ import Footer from "./pages/Footer.jsx"
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import UnlockScreen from "./working/UnlockScreen.jsx"
+import VaultDashBoard from "./working/VaultDashBoard.jsx"
 
 
 
 
 const App = () => {
+  const handleLock = () => {
+    window.location.href = "/unlock-screen";
+  }
+
   return (
     <div>
       <ToastContainer />
@@ -23,6 +28,7 @@ const App = () => {
             <Route path="email-verify" element={<EmailVerify />}/>
             <Route path="reset-password" element={<ResetPassword />}/>
             <Route path="unlock-screen" element={<UnlockScreen />}/>
+            <Route path="vault" element={< VaultDashBoard onLock={handleLock}/>}/>
         </Routes>
 
         <Footer />
