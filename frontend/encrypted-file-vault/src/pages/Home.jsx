@@ -108,7 +108,7 @@ const Home = () => {
     "Encrypted backups",
   ];
 
-  const { userData, backendUrl, setUserData, setIsLoggedin } =
+  const { userData, backendUrl, setUserData, setIsLoggedin, isLoggedin } =
     useContext(AppContext);
 
   const sendVerificationOtp = async () => {
@@ -141,6 +141,14 @@ const Home = () => {
       }
     } catch (error) {
       toast.error(error.message);
+    }
+  };
+
+  const handleStartAction = () => {
+    if (userData || isLoggedin) {
+      navigate('/unlock-screen'); // Navigate to the vault dashboard
+    } else {
+      navigate('/login');
     }
   };
 
@@ -251,7 +259,7 @@ const Home = () => {
               transition={{ delay: 0.3 }}
               className="body-buttons"
             >
-              <button className="btn-primary">
+              <button className="btn-primary" onClick={handleStartAction}>
                 Start encrypting
                 <ArrowRight size={20} />
               </button>
