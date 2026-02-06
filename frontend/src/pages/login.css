@@ -7,6 +7,7 @@
   justify-content: center;
   padding: 40px 20px;
   position: relative;
+  margin-top: -1%;
 }
 
 /* Optional: Add a subtle glow behind the card to match Home page */
@@ -119,14 +120,21 @@
 }
 
 .login-input {
+  box-sizing: border-box; /* Add this line */
   width: 100%;
   background: #0d1117;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 12px 16px;
+  /* padding: 12px 16px; */
   color: #ffffff;
   font-size: 1rem;
   transition: all 0.2s ease;
+}
+
+.login-input::placeholder {
+  text-align: left;
+  padding-left: -50px;
+  color: #8b949e; /* Optional: standard GitHub-style muted grey */
 }
 
 .login-input:focus {
@@ -154,16 +162,18 @@
   transform: translateY(-1px);
 }
 
-/* Divider */
 .divider {
   display: flex;        
   align-items: center;   
   justify-content: center; 
   margin: 24px 0;
-  color: #484f58;
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 1px;
+  width: 100%;
+  clear: both;
+  background: #ff3a3a00;
+  border-radius: 10px;
 }
 
 .divider::before,
@@ -171,12 +181,12 @@
   content: "";
   flex: 1;               
   height: 1px;
-  background: var(--border-color);
 }
 
 .divider span {
   padding: 0 16px;       
-  white-space: nowrap;   
+  white-space: nowrap;
+  color: whitesmoke;
 }
 
 /* Google Button */
