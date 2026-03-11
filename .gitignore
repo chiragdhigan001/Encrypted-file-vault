@@ -1,3 +1,4 @@
-node_modules/
+backend/node_modules/
 .env
 frontend/env
+frontend/node_modules/
