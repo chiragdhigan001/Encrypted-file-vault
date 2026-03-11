@@ -1,5 +1,10 @@
 import bcrypt from "bcryptjs";
 import unlockVaultModel from "../models/unlockVaultModel.js";
+import fileModel from "../models/filemodel.js";
+import fs from 'fs'
+
+
+//----------Password logic------------
 
 // @route   POST /api/vault/set-password
 export const setVaultPassword = async (req, res) => {
@@ -57,3 +62,57 @@ export const passwordUnlockVault = async (req, res) => {
         return res.json({ success: false, message: error.message });
     }
 };
+
+// @route POST  /api/vault/upload
+// @desc upload an encrypted file blob handled by multer
+export const uploadFile = async (req, res) => {
+    try {
+        const { userId, folder } = req.body;
+        const file = req.file;
+
+        if (!file) {
+            return res.json({ success: false, message: "No file uploaded" });
+        }
+
+        const newfile = new fileModel({
+            userId,
+            name: file.originalname,
+            path: file.path,
+            size: (file.size / 1024 / 1024).toFixed(2) + "MB",
+            type: file.mimetype,
+            folder: folder || 'General',
+            isEncrypted: true
+        })
+
+        await newfile.save()
+        res.json({ success: true, message: 'File encrypted and saved to the vault'})
+    } catch (error) {
+        res.json({ success: false, message: error.message })
+    }
+}
+
+//@route Delete /api/vault/delete/:fileId
+//@desc Delete file metadata from DB and actual ile fro server disk
+export const deleteFiles = async (req, res) => {
+    try {
+        const { fileId } = req.params;
+        const { userID } = req.body
+        
+        const file = await fileModel.findOne({ _id: fileId, userID })
+
+        if(!file) {
+            return res.json({ success: false, message: 'File not found' })
+        }
+
+        // Delete from physical storage
+        if(fs.existsSync(file.path)) {
+            fs.unlink(file.path)
+        }
+
+        // Delete from Database
+        await fileModel.findByIdAndDelete(fileId)
+        res.json({ success: true, message: 'File deleted successfully' })
+    } catch (error) {
+        
+    }
+}

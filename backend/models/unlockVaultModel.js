@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const unlockVaultSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'user', // Ensure this matches your User model name
+        ref: 'user', 
         required: true,
         unique: true
     },
