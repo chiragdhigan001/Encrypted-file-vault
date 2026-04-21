@@ -345,7 +345,7 @@ export default function VaultDashboard({ onLock = () => {} }) {
       <header className="vault-header">
         <div className="header-left">
           <div className="brand-icon">
-            <Lock size={20} />
+            <Lock size={25} />
           </div>
           <div>
             <h2>Encrypted Vault</h2>
