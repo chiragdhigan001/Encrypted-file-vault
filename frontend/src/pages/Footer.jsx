@@ -5,7 +5,6 @@ const Footer = () => {
   return (
     <footer className="footer">
       <div className="footer-container">
-        {/* Top grid */}
         <div className="footer-grid">
           <div className="footer-brand">
             <div className="brand">
@@ -13,13 +12,19 @@ const Footer = () => {
               <span>SecureVault</span>
             </div>
             <p>
-              Enterprise-grade file encryption for individuals and teams. 
+              Enterprise-grade file encryption for individuals and teams.
               Protecting your digital assets with zero-knowledge architecture.
             </p>
             <div className="socials">
-              <a href="#"><Github size={22} /></a>
-              <a href="#"><Twitter size={22} /></a>
-              <a href="#"><Linkedin size={22} /></a>
+              <a href="#" aria-label="GitHub">
+                <Github size={22} />
+              </a>
+              <a href="#" aria-label="Twitter">
+                <Twitter size={22} />
+              </a>
+              <a href="#" aria-label="LinkedIn">
+                <Linkedin size={22} />
+              </a>
             </div>
           </div>
 
@@ -54,9 +59,8 @@ const Footer = () => {
           </div>
         </div>
 
-        {/* Bottom bar */}
         <div className="footer-bottom">
-          <p>© 2026 SecureVault. All rights reserved.</p>
+          <p>&copy; 2026 SecureVault. All rights reserved.</p>
           <div className="legal-links">
             <a href="#">Privacy Policy</a>
             <a href="#">Terms of Service</a>

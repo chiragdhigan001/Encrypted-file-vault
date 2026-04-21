@@ -81,6 +81,7 @@ function UploadModal({ onClose, onUpload }) {
                 formData.append('file', encryptedBlob, file.name);
                 formData.append('folder', selectedFolder);
                 formData.append('size', fileSize);
+                formData.append('originalType', file.type || 'application/octet-stream');
 
                 // 4. Send to backend
                 setProgress(85);
@@ -90,8 +91,15 @@ function UploadModal({ onClose, onUpload }) {
                 if (data.success) {
                     setProgress(100);
                     toast.success('File secured and uploaded!')
-                    onUpload(); 
-                    onClose();
+                    onUpload(data.file ?? {
+                        id: Date.now().toString(),
+                        name: file.name,
+                        size: fileSize,
+                        type: file.type || 'application/octet-stream',
+                        folder: selectedFolder,
+                        encrypted: true,
+                        uploadedAt: new Date().toISOString()
+                    }); 
                 } else {
                     toast.error(data.message);
                 }

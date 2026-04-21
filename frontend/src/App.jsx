@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom"
+import { Routes, Route, useLocation } from "react-router-dom"
 import Home from './pages/Home.jsx'
 import Login from "./pages/Login.jsx"
 import Logout from "./pages/Logout"
@@ -14,9 +14,13 @@ import VaultDashBoard from "./working/VaultDashBoard.jsx"
 
 
 const App = () => {
+  const location = useLocation();
   const handleLock = () => {
     window.location.href = "/unlock-screen";
   }
+
+  const hideFooterRoutes = ["/unlock-screen", "/vault"];
+  const shouldHideFooter = hideFooterRoutes.includes(location.pathname);
 
   return (
     <div>
@@ -31,7 +35,7 @@ const App = () => {
             <Route path="vault" element={< VaultDashBoard onLock={handleLock}/>}/>
         </Routes>
 
-        <Footer />
+        {!shouldHideFooter && <Footer />}
     </div>
   )
 }
