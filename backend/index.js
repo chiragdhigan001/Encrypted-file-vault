@@ -7,6 +7,7 @@ import vaultRouter from "./routes/vaultRouter.js";
 import connectDb from "./config/db.js";
 import authRouter from "./routes/authRoutes.js"
 import userRouter from "./routes/userRoutes.js";
+import shareRouter from "./routes/shareRoutes.js";
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -26,5 +27,6 @@ app.get("/", (req,res) => {
 app.use("/api/auth", authRouter)
 app.use("/api/user", userRouter)
 app.use("/api/vault", vaultRouter)
+app.use("/api/share", shareRouter)
 
 app.listen(port, () => console.log(`Server running on port ${port}`));
