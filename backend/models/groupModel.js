@@ -23,6 +23,12 @@ const groupSchema = new mongoose.Schema(
         ref: "user"
       }
     ],
+    adminIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "user"
+      }
+    ],
     inviteToken: {
       type: String,
       required: true,

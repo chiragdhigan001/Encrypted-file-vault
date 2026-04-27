@@ -14,7 +14,10 @@ import {
   getGroups,
   joinGroupByToken,
   getGroupMessages,
-  postGroupMessage
+  postGroupMessage,
+  leaveGroup,
+  deleteGroup,
+  updateGroupMemberRole
 } from "../controllers/shareController.js";
 
 const shareRouter = express.Router();
@@ -24,6 +27,9 @@ shareRouter.post("/public/messages", userAuth, postPublicMessage);
 shareRouter.get("/groups", userAuth, getGroups);
 shareRouter.post("/groups", userAuth, createGroup);
 shareRouter.post("/groups/join/:inviteToken", userAuth, joinGroupByToken);
+shareRouter.post("/groups/:groupId/leave", userAuth, leaveGroup);
+shareRouter.delete("/groups/:groupId", userAuth, deleteGroup);
+shareRouter.patch("/groups/:groupId/members/:memberId/role", userAuth, updateGroupMemberRole);
 shareRouter.get("/groups/:groupId/messages", userAuth, getGroupMessages);
 shareRouter.post("/groups/:groupId/messages", userAuth, postGroupMessage);
 shareRouter.get("/inbox", userAuth, getSharedInbox);

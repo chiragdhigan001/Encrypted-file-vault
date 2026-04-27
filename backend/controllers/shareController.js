@@ -15,6 +15,40 @@ const mapUser = (user) =>
       }
     : null;
 
+const hasGroupAccess = (group, currentUserId) =>
+  String(group.ownerId) === String(currentUserId) ||
+  group.memberIds.some((memberId) => String(memberId) === String(currentUserId));
+
+const isGroupAdmin = (group, currentUserId) =>
+  String(group.ownerId) === String(currentUserId) ||
+  (group.adminIds || []).some((adminId) => String(adminId) === String(currentUserId));
+
+const getGroupRole = (group, currentUserId) => {
+  if (String(group.ownerId?._id || group.ownerId) === String(currentUserId)) return "owner";
+  if ((group.adminIds || []).some((adminId) => String(adminId?._id || adminId) === String(currentUserId))) return "admin";
+  return "member";
+};
+
+const mapGroup = (group, currentUserId, req) => ({
+  id: group._id,
+  name: group.name,
+  description: group.description,
+  inviteToken: group.inviteToken,
+  inviteLink: `${req.protocol}://${req.get("host")}/api/share/groups/join/${group.inviteToken}`,
+  owner: mapUser(group.ownerId),
+  members: group.memberIds.map((member) => ({
+    ...mapUser(member),
+    role:
+      String(member._id || member) === String(group.ownerId?._id || group.ownerId)
+        ? "owner"
+        : (group.adminIds || []).some((adminId) => String(adminId?._id || adminId) === String(member._id || member))
+          ? "admin"
+          : "member"
+  })),
+  isOwner: String(group.ownerId?._id || group.ownerId) === String(currentUserId),
+  currentRole: getGroupRole(group, currentUserId)
+});
+
 const mapShare = (share, currentUserId) => ({
   id: share._id,
   fileId: share.fileId,
@@ -50,12 +84,9 @@ const userCanAccessShare = async (share, currentUserId) => {
   if (share.recipientId && String(share.recipientId) === String(currentUserId)) return true;
 
   if (share.groupId) {
-    const group = await groupModel.findById(share.groupId).select("memberIds ownerId");
+    const group = await groupModel.findById(share.groupId).select("memberIds ownerId adminIds isActive");
     if (!group || !group.isActive) return false;
-    return (
-      String(group.ownerId) === String(currentUserId) ||
-      group.memberIds.some((memberId) => String(memberId) === String(currentUserId))
-    );
+    return hasGroupAccess(group, currentUserId);
   }
 
   return false;
@@ -104,10 +135,14 @@ export const createFileShare = async (req, res) => {
     }
 
     if (shareScope === "group") {
-      const group = await groupModel.findOne({ _id: groupId, ownerId, isActive: true });
+      const group = await groupModel.findOne({ _id: groupId, isActive: true }).select("ownerId memberIds adminIds isActive");
 
       if (!group) {
         return res.json({ success: false, message: "Group not found" });
+      }
+
+      if (!isGroupAdmin(group, ownerId)) {
+        return res.json({ success: false, message: "Only the owner or admins can share into this group" });
       }
 
       const createdShare = await fileShareModel.create({
@@ -415,25 +450,19 @@ export const createGroup = async (req, res) => {
       description: finalDescription,
       ownerId,
       memberIds: normalizedMemberIds,
+      adminIds: [ownerId],
       inviteToken
     });
 
     const populated = await group.populate([
       { path: "ownerId", select: "name email" },
-      { path: "memberIds", select: "name email" }
+      { path: "memberIds", select: "name email" },
+      { path: "adminIds", select: "name email" }
     ]);
 
     return res.json({
       success: true,
-      group: {
-        id: populated._id,
-        name: populated.name,
-        description: populated.description,
-        inviteToken: populated.inviteToken,
-        inviteLink,
-        owner: mapUser(populated.ownerId),
-        members: populated.memberIds.map((member) => mapUser(member))
-      }
+      group: mapGroup(populated, ownerId, req)
     });
   } catch (error) {
     return res.json({ success: false, message: error.message });
@@ -450,18 +479,10 @@ export const getGroups = async (req, res) => {
       })
       .populate("ownerId", "name email")
       .populate("memberIds", "name email")
+      .populate("adminIds", "name email")
       .sort({ createdAt: -1 });
 
-    const payload = groups.map((group) => ({
-      id: group._id,
-      name: group.name,
-      description: group.description,
-      inviteToken: group.inviteToken,
-      inviteLink: `${req.protocol}://${req.get("host")}/api/share/groups/join/${group.inviteToken}`,
-      owner: mapUser(group.ownerId),
-      members: group.memberIds.map((member) => mapUser(member)),
-      isOwner: String(group.ownerId?._id) === String(currentUserId)
-    }));
+    const payload = groups.map((group) => mapGroup(group, currentUserId, req));
 
     return res.json({ success: true, groups: payload });
   } catch (error) {
@@ -495,15 +516,13 @@ export const getGroupMessages = async (req, res) => {
   try {
     const currentUserId = req.user.id;
     const { groupId } = req.params;
-    const group = await groupModel.findById(groupId).select("ownerId memberIds isActive");
+    const group = await groupModel.findById(groupId).select("ownerId memberIds adminIds isActive");
 
     if (!group || !group.isActive) {
       return res.json({ success: false, message: "Group not found" });
     }
 
-    const isAllowed =
-      String(group.ownerId) === String(currentUserId) ||
-      group.memberIds.some((memberId) => String(memberId) === String(currentUserId));
+    const isAllowed = hasGroupAccess(group, currentUserId);
 
     if (!isAllowed) {
       return res.json({ success: false, message: "You are not a member of this group" });
@@ -538,15 +557,13 @@ export const postGroupMessage = async (req, res) => {
       return res.json({ success: false, message: "Message cannot be empty" });
     }
 
-    const group = await groupModel.findById(groupId).select("ownerId memberIds isActive");
+    const group = await groupModel.findById(groupId).select("ownerId memberIds adminIds isActive");
 
     if (!group || !group.isActive) {
       return res.json({ success: false, message: "Group not found" });
     }
 
-    const isAllowed =
-      String(group.ownerId) === String(currentUserId) ||
-      group.memberIds.some((memberId) => String(memberId) === String(currentUserId));
+    const isAllowed = hasGroupAccess(group, currentUserId);
 
     if (!isAllowed) {
       return res.json({ success: false, message: "You are not a member of this group" });
@@ -569,6 +586,106 @@ export const postGroupMessage = async (req, res) => {
         createdAt: populated.createdAt,
         sender: mapUser(populated.senderId)
       }
+    });
+  } catch (error) {
+    return res.json({ success: false, message: error.message });
+  }
+};
+
+export const leaveGroup = async (req, res) => {
+  try {
+    const currentUserId = req.user.id;
+    const { groupId } = req.params;
+    const group = await groupModel.findById(groupId);
+
+    if (!group || !group.isActive) {
+      return res.json({ success: false, message: "Group not found" });
+    }
+
+    if (String(group.ownerId) === String(currentUserId)) {
+      return res.json({ success: false, message: "Owner cannot leave the group. Delete it instead." });
+    }
+
+    group.memberIds = group.memberIds.filter((memberId) => String(memberId) !== String(currentUserId));
+    group.adminIds = (group.adminIds || []).filter((adminId) => String(adminId) !== String(currentUserId));
+    await group.save();
+
+    return res.json({ success: true, message: "Left group successfully" });
+  } catch (error) {
+    return res.json({ success: false, message: error.message });
+  }
+};
+
+export const deleteGroup = async (req, res) => {
+  try {
+    const currentUserId = req.user.id;
+    const { groupId } = req.params;
+    const group = await groupModel.findById(groupId);
+
+    if (!group || !group.isActive) {
+      return res.json({ success: false, message: "Group not found" });
+    }
+
+    if (String(group.ownerId) !== String(currentUserId)) {
+      return res.json({ success: false, message: "Only the owner can delete this group" });
+    }
+
+    group.isActive = false;
+    await group.save();
+    await fileShareModel.updateMany({ groupId, shareScope: "group" }, { isActive: false });
+
+    return res.json({ success: true, message: "Group deleted successfully" });
+  } catch (error) {
+    return res.json({ success: false, message: error.message });
+  }
+};
+
+export const updateGroupMemberRole = async (req, res) => {
+  try {
+    const currentUserId = req.user.id;
+    const { groupId, memberId } = req.params;
+    const { role } = req.body;
+    const group = await groupModel.findById(groupId);
+
+    if (!group || !group.isActive) {
+      return res.json({ success: false, message: "Group not found" });
+    }
+
+    if (String(group.ownerId) !== String(currentUserId)) {
+      return res.json({ success: false, message: "Only the owner can change member roles" });
+    }
+
+    if (String(group.ownerId) === String(memberId)) {
+      return res.json({ success: false, message: "Owner role cannot be changed" });
+    }
+
+    const isMember = group.memberIds.some((id) => String(id) === String(memberId));
+    if (!isMember) {
+      return res.json({ success: false, message: "Member not found in this group" });
+    }
+
+    if (role === "admin") {
+      if (!(group.adminIds || []).some((id) => String(id) === String(memberId))) {
+        group.adminIds = [...(group.adminIds || []), memberId];
+      }
+    } else if (role === "member") {
+      group.adminIds = (group.adminIds || []).filter((id) => String(id) !== String(memberId));
+    } else {
+      return res.json({ success: false, message: "Invalid role" });
+    }
+
+    await group.save();
+
+    const populated = await group.populate([
+      { path: "ownerId", select: "name email" },
+      { path: "memberIds", select: "name email" },
+      { path: "adminIds", select: "name email" }
+    ]);
+
+    return res.json({
+      success: true,
+      message: "Member role updated successfully",
+      group: mapGroup(populated, currentUserId, req)
     });
   } catch (error) {
     return res.json({ success: false, message: error.message });

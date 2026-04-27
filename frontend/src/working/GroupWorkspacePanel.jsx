@@ -1,6 +1,18 @@
 import { useMemo, useState } from "react";
 import axios from "axios";
-import { Copy, Download, Eye, KeyRound, Loader2, Plus, UserPlus, Users } from "lucide-react";
+import {
+  Copy,
+  Download,
+  Eye,
+  KeyRound,
+  Loader2,
+  MoreVertical,
+  Plus,
+  Shield,
+  UserPlus,
+  Users,
+  X
+} from "lucide-react";
 import { toast } from "react-toastify";
 import ShareChatPanel from "./ShareChatPanel";
 import CreateGroupModal from "./CreateGroupModal";
@@ -12,6 +24,8 @@ export default function GroupWorkspacePanel({ backendUrl, groups, groupShares, r
   const [joinToken, setJoinToken] = useState("");
   const [busyShareId, setBusyShareId] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showGroupMenu, setShowGroupMenu] = useState(false);
+  const [changingMemberId, setChangingMemberId] = useState("");
   const [previewState, setPreviewState] = useState({ isOpen: false, fileName: "", mimeType: "", content: "", url: "" });
 
   const activeGroup = useMemo(() => groups.find((group) => group.id === activeGroupId) || groups[0] || null, [groups, activeGroupId]);
@@ -84,6 +98,53 @@ export default function GroupWorkspacePanel({ backendUrl, groups, groupShares, r
     }
   };
 
+  const handleGroupAction = async (action) => {
+    if (!activeGroup) return;
+
+    try {
+      if (action === "delete") {
+        const { data } = await axios.delete(`${backendUrl}/api/share/groups/${activeGroup.id}`);
+        if (!data.success) {
+          toast.error(data.message || "Unable to delete group.");
+          return;
+        }
+        toast.success("Group deleted successfully.");
+      } else {
+        const { data } = await axios.post(`${backendUrl}/api/share/groups/${activeGroup.id}/leave`);
+        if (!data.success) {
+          toast.error(data.message || "Unable to leave group.");
+          return;
+        }
+        toast.success("Left group successfully.");
+      }
+
+      setShowGroupMenu(false);
+      setActiveGroupId("");
+      refreshAll();
+    } catch (error) {
+      toast.error(action === "delete" ? "Unable to delete group." : "Unable to leave group.");
+    }
+  };
+
+  const updateRole = async (memberId, role) => {
+    if (!activeGroup) return;
+
+    setChangingMemberId(memberId);
+    try {
+      const { data } = await axios.patch(`${backendUrl}/api/share/groups/${activeGroup.id}/members/${memberId}/role`, { role });
+      if (data.success) {
+        toast.success(`Member updated to ${role}.`);
+        refreshAll();
+      } else {
+        toast.error(data.message || "Unable to update role.");
+      }
+    } catch (error) {
+      toast.error("Unable to update role.");
+    } finally {
+      setChangingMemberId("");
+    }
+  };
+
   return (
     <>
       <section className="group-workspace">
@@ -107,9 +168,10 @@ export default function GroupWorkspacePanel({ backendUrl, groups, groupShares, r
               <div className="group-empty-card">No groups yet.</div>
             ) : (
               groups.map((group) => (
-                <button key={group.id} className={`group-item ${(activeGroup?.id || "") === group.id ? "active" : ""}`} onClick={() => setActiveGroupId(group.id)}>
+                <button key={group.id} className={`group-item ${(activeGroup?.id || "") === group.id ? "active" : ""}`} onClick={() => { setActiveGroupId(group.id); setShowGroupMenu(false); }}>
                   <strong>{group.name}</strong>
                   <span>{group.members.length} members</span>
+                  <small className="group-role-pill">{group.currentRole}</small>
                 </button>
               ))
             )}
@@ -122,17 +184,64 @@ export default function GroupWorkspacePanel({ backendUrl, groups, groupShares, r
           ) : (
             <>
               <div className="group-card">
-                <div>
-                  <p className="group-eyebrow">Group Space</p>
-                  <h3>{activeGroup.name}</h3>
+                <div className="group-header-row">
+                  <div>
+                    <p className="group-eyebrow">Group Space</p>
+                    <h3>{activeGroup.name}</h3>
+                  </div>
+
+                  <div className="group-menu-wrap">
+                    <button className="group-menu-trigger" onClick={() => setShowGroupMenu((value) => !value)} aria-label="Group options">
+                      <MoreVertical size={18} />
+                    </button>
+
+                    {showGroupMenu && (
+                      <div className="group-menu-dropdown">
+                        {activeGroup.isOwner ? (
+                          <button onClick={() => handleGroupAction("delete")}>Delete Group</button>
+                        ) : (
+                          <button onClick={() => handleGroupAction("leave")}>Leave Group</button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
+
                 <p className="group-description">{activeGroup.description}</p>
                 <div className="group-meta">
                   <span><Users size={14} /> {activeGroup.members.length} members</span>
+                  <span><Shield size={14} /> You are {activeGroup.currentRole}</span>
                   <button onClick={() => copyInviteLink(activeGroup.inviteLink)}>
                     <Copy size={14} />
                     Copy Invite Link
                   </button>
+                </div>
+              </div>
+
+              <div className="group-shares-card">
+                <div className="group-card-topline">
+                  <h4>Members and roles</h4>
+                </div>
+
+                <div className="group-member-role-list">
+                  {activeGroup.members.map((member) => (
+                    <div key={member.id} className="group-member-role-item">
+                      <div>
+                        <strong>{member.name}</strong>
+                        <span>{member.email}</span>
+                      </div>
+
+                      <div className="group-member-role-actions">
+                        <span className={`member-role-badge ${member.role}`}>{member.role}</span>
+                        {activeGroup.isOwner && member.role !== "owner" && (
+                          <select value={member.role} onChange={(event) => updateRole(member.id, event.target.value)} disabled={changingMemberId === member.id}>
+                            <option value="member">Member</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
