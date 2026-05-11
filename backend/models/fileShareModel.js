@@ -56,6 +56,55 @@ const fileShareSchema = new mongoose.Schema(
       type: String,
       default: ""
     },
+    shareLinkToken: {
+      type: String,
+      default: "",
+      index: true
+    },
+    expiresAt: {
+      type: Date,
+      default: null
+    },
+    oneTimeAccess: {
+      type: Boolean,
+      default: false
+    },
+    accessCount: {
+      type: Number,
+      default: 0
+    },
+    lastAccessedAt: {
+      type: Date,
+      default: null
+    },
+    revokedAt: {
+      type: Date,
+      default: null
+    },
+    revokeReason: {
+      type: String,
+      default: ""
+    },
+    downloadHistory: {
+      type: [
+        {
+          userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "user",
+            default: null
+          },
+          ipAddress: {
+            type: String,
+            default: ""
+          },
+          accessedAt: {
+            type: Date,
+            default: Date.now
+          }
+        }
+      ],
+      default: []
+    },
     shareCopyPath: {
       type: String,
       required: true

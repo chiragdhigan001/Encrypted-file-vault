@@ -1,10 +1,11 @@
 import { useState, useContext } from 'react'; 
 import { X, Upload, FolderOpen, Shield, CheckCircle, Loader2 } from 'lucide-react';
-import CryptoJS from 'crypto-js';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { AppContext } from "../context/AppContext"; 
 import './uploadModal.css';
+import { encryptFileForVault } from './vaultCrypto';
+import { analyzeFileWithLocalAi } from './aiAssist';
 
 function UploadModal({ onClose, onUpload }) {
     const [file, setFile] = useState(null); 
@@ -15,7 +16,7 @@ function UploadModal({ onClose, onUpload }) {
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState(0);
 
-    const { backendUrl, masterKey } = useContext(AppContext);
+    const { backendUrl, vaultSession } = useContext(AppContext);
 
     const folders = ['Documents', 'Personal', 'Security', 'Work', 'Other'];
 
@@ -53,7 +54,7 @@ function UploadModal({ onClose, onUpload }) {
 
     // --- ENCRYPTION & UPLOAD LOGIC ---
     const handleUpload = async () => {
-        if (!file || !masterKey) {
+        if (!file || !vaultSession?.vaultKey) {
             toast.error("Encryption key missing. Please unlock the vault again.");
             return;
         }
@@ -61,62 +62,66 @@ function UploadModal({ onClose, onUpload }) {
         setUploading(true);
         setProgress(10);
 
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                // 1. Convert file to wordArray
-                setProgress(30);
-                const wordArray = CryptoJS.lib.WordArray.create(e.target.result);
+        try {
+            setProgress(30);
+            const { encryptedBlob, metadata } = await encryptFileForVault(file, vaultSession.vaultKey);
+            const aiInsight = await analyzeFileWithLocalAi(file);
 
-                // 2. Encrypt using AES-256 with master key
-                setProgress(50);
-                const encrypted = CryptoJS.AES.encrypt(wordArray, masterKey).toString();
+            setProgress(70);
+            const formData = new FormData();
+            formData.append('file', encryptedBlob, `${file.name}.vault`);
+            formData.append('folder', selectedFolder);
+            formData.append('size', fileSize);
+            formData.append('sizeBytes', String(metadata.sizeBytes));
+            formData.append('originalType', metadata.originalType);
+            formData.append('originalName', metadata.originalName);
+            formData.append('encryptionVersion', metadata.encryptionVersion);
+            formData.append('encryptedDek', metadata.encryptedDek);
+            formData.append('fileIv', metadata.fileIv);
+            formData.append('wrapIv', metadata.wrapIv);
+            formData.append('integrityHash', metadata.integrityHash);
+            formData.append('aiCategory', aiInsight.aiCategory);
+            formData.append('aiTags', JSON.stringify(aiInsight.aiTags || []));
+            formData.append('aiSensitiveFindings', JSON.stringify(aiInsight.aiSensitiveFindings || []));
+            formData.append('aiSummary', aiInsight.aiSummary || '');
+            formData.append('extractedTextPreview', aiInsight.extractedTextPreview || '');
 
-                // 3. Prepare multipart form data 
-                setProgress(70);
-                const encryptedBlob = new Blob([encrypted], { type: 'text/plain' });
-                const formData = new FormData();
-                
-                // 'file' must match the name used in your backend (e.g., upload.single('file'))
-                formData.append('file', encryptedBlob, file.name);
-                formData.append('folder', selectedFolder);
-                formData.append('size', fileSize);
-                formData.append('originalType', file.type || 'application/octet-stream');
+            setProgress(85);
+            axios.defaults.withCredentials = true;
+            const { data } = await axios.post(`${backendUrl}/api/vault/upload`, formData);
 
-                // 4. Send to backend
-                setProgress(85);
-                axios.defaults.withCredentials = true;
-                const { data } = await axios.post(`${backendUrl}/api/vault/upload`, formData);
-
-                if (data.success) {
-                    setProgress(100);
-                    toast.success('File secured and uploaded!')
-                    onUpload(data.file ?? {
-                        id: Date.now().toString(),
-                        name: file.name,
-                        size: fileSize,
-                        type: file.type || 'application/octet-stream',
-                        folder: selectedFolder,
-                        encrypted: true,
-                        uploadedAt: new Date().toISOString()
-                    }); 
-                } else {
-                    toast.error(data.message);
-                }
-            } catch (error) {
-                toast.error('Encryption or Upload failed');
-                console.error(error);
-            } finally {
-                setUploading(false);
+            if (data.success) {
+                setProgress(100);
+                toast.success('File secured and uploaded!')
+                onUpload(data.file ?? {
+                    id: Date.now().toString(),
+                    name: file.name,
+                    size: fileSize,
+                    sizeBytes: file.size,
+                    type: file.type || 'application/octet-stream',
+                    folder: selectedFolder,
+                    encrypted: true,
+                    uploadedAt: new Date().toISOString(),
+                    encryptionVersion: metadata.encryptionVersion,
+                    encryptedDek: metadata.encryptedDek,
+                    fileIv: metadata.fileIv,
+                    wrapIv: metadata.wrapIv,
+                    integrityHash: metadata.integrityHash,
+                    aiCategory: aiInsight.aiCategory,
+                    aiTags: aiInsight.aiTags,
+                    aiSensitiveFindings: aiInsight.aiSensitiveFindings,
+                    aiSummary: aiInsight.aiSummary,
+                    extractedTextPreview: aiInsight.extractedTextPreview
+                }); 
+            } else {
+                toast.error(data.message);
             }
-        };
-
-        reader.onerror = () => {
-            toast.error("Error reading file");
+        } catch (error) {
+            toast.error('Encryption or Upload failed');
+            console.error(error);
+        } finally {
             setUploading(false);
-        };
-
-        reader.readAsArrayBuffer(file);
+        }
     };
 
     return (

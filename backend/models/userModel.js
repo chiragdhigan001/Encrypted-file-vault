@@ -14,6 +14,31 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    role: {
+        type: String,
+        enum: ["user", "admin", "auditor", "team_owner"],
+        default: "user"
+    },
+    googleId: {
+        type: String,
+        default: ""
+    },
+    isMfaEnabled: {
+        type: Boolean,
+        default: false
+    },
+    mfaSecret: {
+        type: String,
+        default: ""
+    },
+    mfaTempSecret: {
+        type: String,
+        default: ""
+    },
+    recoveryCodes: {
+        type: [String],
+        default: []
+    },
     verifyOTP: {
         type: String,
         default:""
@@ -29,6 +54,22 @@ const userSchema = new mongoose.Schema({
     resetOTP: {
         type: Number,
         default: 0
+    },
+    resetPasswordOTP: {
+        type: String,
+        default: ""
+    },
+    resetPasswordOTPExpiryAt: {
+        type: Number,
+        default: 0
+    },
+    resetPasswordOTPVerifiedAt: {
+        type: Number,
+        default: 0
+    },
+    lastLoginAt: {
+        type: Date,
+        default: null
     }
     
 });

@@ -1,4 +1,5 @@
 import userModel from "../models/userModel.js";
+import { getRolePermissions } from "../utils/rbac.js";
 
 export const getUserData = async (req,res) => {
     try {
@@ -13,7 +14,12 @@ export const getUserData = async (req,res) => {
                 id: user._id,
                 name: user.name,
                 email: user.email,
-                isAccountverified: user.isAccountVerified
+                isAccountverified: user.isAccountVerified,
+                role: user.role,
+                permissions: getRolePermissions(user.role),
+                isMfaEnabled: user.isMfaEnabled,
+                isGoogleConnected: Boolean(user.googleId),
+                lastLoginAt: user.lastLoginAt
             }
         })
 

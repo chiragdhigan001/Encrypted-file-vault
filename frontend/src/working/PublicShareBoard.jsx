@@ -65,6 +65,7 @@ export default function PublicShareBoard({ backendUrl, publicShares }) {
                 <strong>{share.fileName}</strong>
                 <span>By {share.owner?.name || "User"}</span>
                 <small>{share.requiresPassword ? "Public share with password" : "Open public share"}</small>
+                <small>{share.oneTimeAccess ? "One-time access" : share.expiresAt ? `Expires ${new Date(share.expiresAt).toLocaleDateString()}` : "Persistent share"}</small>
               </button>
             ))
           )}
@@ -84,6 +85,7 @@ export default function PublicShareBoard({ backendUrl, publicShares }) {
                 <div className="public-share-meta">
                   <span>{activeShare.fileSize}</span>
                   <span>{activeShare.permission}</span>
+                  {activeShare.expiresAt ? <span>Expires {new Date(activeShare.expiresAt).toLocaleDateString()}</span> : null}
                   {activeShare.requiresPassword && (
                     <span className="password-pill"><KeyRound size={14} /> Password protected</span>
                   )}

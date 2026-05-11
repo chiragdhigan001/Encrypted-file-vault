@@ -14,12 +14,12 @@ import {
 import { toast } from "react-toastify";
 import {
   createRandomShareKey,
-  decryptCipherTextToBlob,
   encryptBlobWithKey
 } from "./shareCrypto";
+import { decryptVaultFileBlob } from "./vaultCrypto";
 import "./fileShareModal.css";
 
-export default function FileShareModal({ file, backendUrl, masterKey, onClose, onShared }) {
+export default function FileShareModal({ file, backendUrl, vaultSession, onClose, onShared }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
@@ -29,6 +29,8 @@ export default function FileShareModal({ file, backendUrl, masterKey, onClose, o
   const [permission, setPermission] = useState("view");
   const [usePassword, setUsePassword] = useState(false);
   const [sharePassword, setSharePassword] = useState("");
+  const [expiryHours, setExpiryHours] = useState("");
+  const [oneTimeAccess, setOneTimeAccess] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -104,7 +106,7 @@ export default function FileShareModal({ file, backendUrl, masterKey, onClose, o
   };
 
   const handleShare = async () => {
-    if (!masterKey) {
+    if (!vaultSession) {
       toast.error("Unlock the vault again before sharing files.");
       return;
     }
@@ -114,11 +116,15 @@ export default function FileShareModal({ file, backendUrl, masterKey, onClose, o
     setSaving(true);
 
     try {
-      const { data: cipherText } = await axios.get(`${backendUrl}/api/vault/file/${file.id}/download`, {
-        responseType: "text"
+      const { data: encryptedPayload } = await axios.get(`${backendUrl}/api/vault/file/${file.id}/download`, {
+        responseType: "arraybuffer"
       });
 
-      const originalBlob = decryptCipherTextToBlob(cipherText, masterKey, file.type);
+      const originalBlob = await decryptVaultFileBlob(
+        encryptedPayload instanceof ArrayBuffer ? encryptedPayload : encryptedPayload.buffer,
+        file,
+        vaultSession
+      );
       const shareKey = usePassword ? sharePassword.trim() : createRandomShareKey();
       const sharedCipherText = await encryptBlobWithKey(originalBlob, shareKey);
 
@@ -130,6 +136,8 @@ export default function FileShareModal({ file, backendUrl, masterKey, onClose, o
       formData.append("shareScope", shareScope);
       formData.append("recipients", JSON.stringify(selectedUsers.map((user) => user._id)));
       formData.append("groupId", selectedGroupId);
+      formData.append("expiryHours", expiryHours);
+      formData.append("oneTimeAccess", String(oneTimeAccess));
 
       const response = await axios.post(`${backendUrl}/api/share/file/${file.id}`, formData);
 
@@ -266,6 +274,20 @@ export default function FileShareModal({ file, backendUrl, masterKey, onClose, o
               <button type="button" className={`toggle-password-btn ${usePassword ? "active" : ""}`} onClick={() => setUsePassword((value) => !value)}>
                 <KeyRound size={16} />
                 {usePassword ? "Password required" : "Optional password off"}
+              </button>
+            </div>
+          </div>
+
+          <div className="file-share-grid">
+            <div className="file-share-section">
+              <label>Expiry in hours</label>
+              <input value={expiryHours} onChange={(event) => setExpiryHours(event.target.value)} placeholder="Optional, e.g. 24" />
+            </div>
+            <div className="file-share-section">
+              <label>One-time access</label>
+              <button type="button" className={`toggle-password-btn ${oneTimeAccess ? "active" : ""}`} onClick={() => setOneTimeAccess((value) => !value)}>
+                <KeyRound size={16} />
+                {oneTimeAccess ? "Single access enabled" : "Reusable share"}
               </button>
             </div>
           </div>

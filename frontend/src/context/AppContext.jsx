@@ -14,7 +14,7 @@ export const AppContextProvider = (props) => {
 
     const [isLoggedin, setIsLoggedin] = useState(false)
     const [userData, setUserData] = useState(false)
-    const [masterKey, setMasterKey] = useState(null);
+    const [vaultSession, setVaultSession] = useState(null);
 
     const getAuthState = async () => {
       try {
@@ -22,9 +22,13 @@ export const AppContextProvider = (props) => {
         if (data.success) {
           setIsLoggedin(true)
           getUserData()
-        } 
+        } else {
+          setIsLoggedin(false)
+          setUserData(false)
+        }
       } catch (error) {
-        toast.error(error.message) 
+        setIsLoggedin(false)
+        setUserData(false)
       }
     }
 
@@ -39,7 +43,9 @@ export const AppContextProvider = (props) => {
     }
     
   } catch (error) {
-    toast.error(error.response?.data?.message || error.message);
+    if (error.response?.status !== 401) {
+      toast.error(error.response?.data?.message || error.message);
+    }
   }
 }
 
@@ -52,7 +58,7 @@ export const AppContextProvider = (props) => {
         isLoggedin, setIsLoggedin,
         userData, setUserData,
         getUserData,
-        masterKey, setMasterKey
+        vaultSession, setVaultSession
     };
   
   return (

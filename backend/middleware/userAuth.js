@@ -1,25 +1,47 @@
 import jwt from "jsonwebtoken";
+import {
+  clearAuthCookies,
+  issueSession,
+  markSessionSeen,
+  resolveSessionFromRefreshToken,
+  setAuthCookies
+} from "../utils/authSession.js";
 
-const userAuth = (req, res, next) => {
-  const { token } = req.cookies;
+const userAuth = async (req, res, next) => {
+  const { token, refreshToken } = req.cookies;
 
-  if (!token) {
-    return res.json({ success: false, message: "Unauthorized Access" });
+  try {
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded?.id) {
+        req.user = { id: decoded.id, sessionId: decoded.sessionId || "" };
+        await markSessionSeen(decoded.sessionId, req);
+        return next();
+      }
+    }
+  } catch (error) {
+    // fall through to refresh token recovery
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const session = await resolveSessionFromRefreshToken(refreshToken);
 
-    if (!decoded?.id) {
-      return res.json({ success: false, message: "Unauthorized Access" });
+    if (!session?.userId?._id) {
+      clearAuthCookies(res);
+      return res.status(401).json({ success: false, message: "Unauthorized Access" });
     }
 
-    req.user = { id: decoded.id };
-
-    next();
-
+    const { accessToken, refreshToken: nextRefreshToken, session: rotatedSession } = await issueSession(
+      session.userId._id,
+      req,
+      session
+    );
+    setAuthCookies(res, accessToken, nextRefreshToken);
+    req.user = { id: session.userId._id, sessionId: rotatedSession._id };
+    return next();
   } catch (error) {
-    return res.json({ success: false, message: error.message });
+    clearAuthCookies(res);
+    return res.status(401).json({ success: false, message: "Unauthorized Access" });
   }
 };
 

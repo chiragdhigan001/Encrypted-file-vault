@@ -5,6 +5,7 @@ import {
   createFileShare,
   getSharedInbox,
   getSharedFileCopy,
+  getShareByLinkToken,
   revokeShare,
   getShareMessages,
   postShareMessage,
@@ -23,6 +24,7 @@ import {
 const shareRouter = express.Router();
 
 shareRouter.get("/public/messages", userAuth, getPublicMessages);
+shareRouter.get("/link/:token", getShareByLinkToken);
 shareRouter.post("/public/messages", userAuth, postPublicMessage);
 shareRouter.get("/groups", userAuth, getGroups);
 shareRouter.post("/groups", userAuth, createGroup);

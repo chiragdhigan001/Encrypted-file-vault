@@ -257,7 +257,11 @@ export default function GroupWorkspacePanel({ backendUrl, groups, groupShares, r
                       <div key={share.id} className="group-share-item">
                         <div>
                           <strong>{share.fileName}</strong>
-                          <span>By {share.owner?.name || "User"}</span>
+                          <span>
+                            By {share.owner?.name || "User"}
+                            {share.expiresAt ? ` • Expires ${new Date(share.expiresAt).toLocaleDateString()}` : ""}
+                            {share.oneTimeAccess ? " • One-time" : ""}
+                          </span>
                         </div>
                         <div className="group-share-actions">
                           {share.requiresPassword && <span className="password-pill"><KeyRound size={14} /> Password</span>}

@@ -1,12 +1,16 @@
 import { Lock, Shield, Loader2, Sparkles, Layers3 } from "lucide-react";
 import { motion } from "framer-motion";
 import "./unlockScreen.css";
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { AppContext } from "../context/AppContext";
-import CryptoJS from "crypto-js";
 import { toast } from "react-toastify";
+import {
+  createVaultSetupPayload,
+  deriveLegacyVaultKey,
+  deriveVaultSecrets
+} from "./vaultCrypto";
 
 const containerMotion = {
   hidden: { opacity: 0 },
@@ -35,29 +39,79 @@ const UnlockScreen = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
+  const [vaultConfig, setVaultConfig] = useState(null);
 
   const navigate = useNavigate();
-  const { backendUrl, setMasterKey } = useContext(AppContext);
+  const { backendUrl, setVaultSession } = useContext(AppContext);
+
+  useEffect(() => {
+    const loadVaultStatus = async () => {
+      try {
+        const { data } = await axios.get(`${backendUrl}/api/vault/status`);
+        if (data.success) {
+          setIsNewUser(!data.initialized);
+          setVaultConfig(data.initialized ? data : null);
+        }
+      } catch (error_) {
+        // keep screen usable even if the status prefetch fails
+      }
+    };
+
+    if (backendUrl) loadVaultStatus();
+  }, [backendUrl]);
 
   const handleAction = async (event) => {
     event.preventDefault();
     setLoading(true);
     setError("");
 
-    const endpoint = isNewUser ? "/api/vault/set-password" : "/api/vault/unlock";
-
     try {
       axios.defaults.withCredentials = true;
-      const { data } = await axios.post(backendUrl + endpoint, {
-        vaultPassword: password
-      });
+      let data;
+      let nextVaultSession = null;
+
+      if (isNewUser) {
+        const setupPayload = await createVaultSetupPayload(password);
+        ({ data } = await axios.post(`${backendUrl}/api/vault/set-password`, {
+          authVerifier: setupPayload.authVerifier,
+          vaultSalt: setupPayload.vaultSalt,
+          vaultIterations: setupPayload.vaultIterations
+        }));
+        nextVaultSession = {
+          scheme: "zk-v1",
+          vaultKey: setupPayload.vaultKey,
+          legacyKey: deriveLegacyVaultKey(password)
+        };
+      } else if (vaultConfig?.scheme === "zk-v1" && vaultConfig?.kdfSalt) {
+        const derived = await deriveVaultSecrets(password, vaultConfig.kdfSalt, vaultConfig.kdfIterations);
+        ({ data } = await axios.post(`${backendUrl}/api/vault/unlock`, {
+          vaultAuthVerifier: derived.authVerifier
+        }));
+        nextVaultSession = {
+          scheme: "zk-v1",
+          vaultKey: derived.vaultKey,
+          legacyKey: deriveLegacyVaultKey(password)
+        };
+      } else {
+        ({ data } = await axios.post(`${backendUrl}/api/vault/unlock`, {
+          vaultPassword: password
+        }));
+
+        if (data.success && data.kdfSalt) {
+          const derived = await deriveVaultSecrets(password, data.kdfSalt, data.kdfIterations);
+          nextVaultSession = {
+            scheme: "zk-v1",
+            vaultKey: derived.vaultKey,
+            legacyKey: deriveLegacyVaultKey(password)
+          };
+        }
+      }
 
       if (data.success) {
-        const derivedKey = CryptoJS.SHA256(password).toString();
-        setMasterKey(derivedKey);
+        setVaultSession(nextVaultSession);
         toast.success(data.message);
         navigate("/vault");
-      } else if (data.message.includes("not initialized")) {
+      } else if (data.message?.includes("not initialized")) {
         setIsNewUser(true);
         setError("Vault not found. Set a new master password.");
       } else {
@@ -88,13 +142,13 @@ const UnlockScreen = () => {
           </h1>
 
           <p className="side-copy">
-            Your files stay encrypted at rest, and the vault key is derived only after a successful unlock. The interface now adds subtle motion and depth, but keeps the experience lightweight and focused.
+            Your vault key is derived inside the browser, then used to wrap per-file encryption keys before upload. The server stores only encrypted blobs and encrypted key envelopes.
           </p>
 
           <div className="side-feature-list">
             <div className="side-feature">
               <Shield size={18} />
-              <span>Client-side key derivation before vault access</span>
+              <span>Browser-side key derivation before vault access</span>
             </div>
             <div className="side-feature">
               <Layers3 size={18} />
@@ -102,7 +156,7 @@ const UnlockScreen = () => {
             </div>
             <div className="side-feature">
               <Lock size={18} />
-              <span>Separate initialization flow for first-time vault setup</span>
+              <span>Legacy vault migration keeps old encrypted files usable</span>
             </div>
           </div>
         </motion.div>
@@ -133,7 +187,7 @@ const UnlockScreen = () => {
               <p className="vault-subtitle">
                 {isNewUser
                   ? "Create a master key to start protecting your private files."
-                  : "Enter your vault password to unlock secure storage."}
+                  : "Enter your vault password to derive your local vault key and unlock secure storage."}
               </p>
             </motion.div>
 
@@ -172,7 +226,7 @@ const UnlockScreen = () => {
 
             <motion.div className="encryption-notice" variants={riseMotion}>
               <p className="notice-label">Protection Standard</p>
-              <p className="notice-text">AES-256 encryption with derived vault key access</p>
+              <p className="notice-text">AES-256-GCM with browser-side key derivation and integrity verification</p>
             </motion.div>
           </motion.div>
         </motion.div>

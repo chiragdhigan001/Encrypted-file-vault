@@ -209,3 +209,40 @@
 .google-login:hover {
   background: #f6f8fa;
 }
+
+.google-login-wrap,
+.google-render-slot {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.google-hint {
+  margin-top: 12px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.mfa-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  border-radius: 12px;
+  background: rgba(88, 166, 255, 0.08);
+  border: 1px solid rgba(88, 166, 255, 0.18);
+  color: #dbeafe;
+}
+
+.secondary-login-action {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: #c9d1d9;
+  cursor: pointer;
+}

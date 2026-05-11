@@ -60,6 +60,15 @@ const mapShare = (share, currentUserId) => ({
   requiresPassword: share.requiresPassword,
   systemAccessKey: share.requiresPassword ? "" : share.systemAccessKey,
   createdAt: share.createdAt,
+  expiresAt: share.expiresAt,
+  oneTimeAccess: share.oneTimeAccess,
+  accessCount: share.accessCount,
+  lastAccessedAt: share.lastAccessedAt,
+  shareLinkToken: share.shareLinkToken,
+  shareLink: share.shareLinkToken ? `/api/share/link/${share.shareLinkToken}` : "",
+  revokedAt: share.revokedAt,
+  revokeReason: share.revokeReason,
+  downloadHistory: share.downloadHistory || [],
   shareScope: share.shareScope,
   owner: mapUser(share.ownerId),
   recipient: mapUser(share.recipientId),
@@ -78,6 +87,8 @@ const mapShare = (share, currentUserId) => ({
 
 const userCanAccessShare = async (share, currentUserId) => {
   if (!share || !share.isActive) return false;
+  if (share.expiresAt && new Date(share.expiresAt).getTime() < Date.now()) return false;
+  if (share.oneTimeAccess && share.accessCount > 0 && String(share.ownerId) !== String(currentUserId)) return false;
 
   if (share.shareScope === "public") return true;
   if (String(share.ownerId) === String(currentUserId)) return true;
@@ -102,7 +113,9 @@ export const createFileShare = async (req, res) => {
       requiresPassword = "false",
       systemAccessKey = "",
       shareScope = "direct",
-      groupId = ""
+      groupId = "",
+      expiryHours = "",
+      oneTimeAccess = "false"
     } = req.body;
     const shareFile = req.file;
 
@@ -116,18 +129,27 @@ export const createFileShare = async (req, res) => {
       return res.json({ success: false, message: "Encrypted share copy is missing" });
     }
 
+    const shareLinkToken = crypto.randomBytes(18).toString("hex");
+    const computedExpiresAt = expiryHours ? new Date(Date.now() + Number(expiryHours) * 60 * 60 * 1000) : null;
+    const shareBaseFields = {
+      fileId: ownerFile._id,
+      ownerId,
+      fileName: ownerFile.name,
+      fileType: ownerFile.type,
+      fileSize: ownerFile.size,
+      folder: ownerFile.folder,
+      permission,
+      requiresPassword: requiresPassword === "true",
+      systemAccessKey: requiresPassword === "true" ? "" : systemAccessKey,
+      shareCopyPath: shareFile.path,
+      shareLinkToken,
+      expiresAt: computedExpiresAt,
+      oneTimeAccess: oneTimeAccess === "true"
+    };
+
     if (shareScope === "public") {
       const createdShare = await fileShareModel.create({
-        fileId: ownerFile._id,
-        ownerId,
-        fileName: ownerFile.name,
-        fileType: ownerFile.type,
-        fileSize: ownerFile.size,
-        folder: ownerFile.folder,
-        permission,
-        requiresPassword: requiresPassword === "true",
-        systemAccessKey: requiresPassword === "true" ? "" : systemAccessKey,
-        shareCopyPath: shareFile.path,
+        ...shareBaseFields,
         shareScope: "public"
       });
 
@@ -146,17 +168,8 @@ export const createFileShare = async (req, res) => {
       }
 
       const createdShare = await fileShareModel.create({
-        fileId: ownerFile._id,
-        ownerId,
+        ...shareBaseFields,
         groupId: group._id,
-        fileName: ownerFile.name,
-        fileType: ownerFile.type,
-        fileSize: ownerFile.size,
-        folder: ownerFile.folder,
-        permission,
-        requiresPassword: requiresPassword === "true",
-        systemAccessKey: requiresPassword === "true" ? "" : systemAccessKey,
-        shareCopyPath: shareFile.path,
         shareScope: "group"
       });
 
@@ -177,17 +190,9 @@ export const createFileShare = async (req, res) => {
     }
 
     const shareDocs = recipientUsers.map((user) => ({
-      fileId: ownerFile._id,
-      ownerId,
+      ...shareBaseFields,
       recipientId: user._id,
-      fileName: ownerFile.name,
-      fileType: ownerFile.type,
-      fileSize: ownerFile.size,
-      folder: ownerFile.folder,
-      permission,
-      requiresPassword: requiresPassword === "true",
-      systemAccessKey: requiresPassword === "true" ? "" : systemAccessKey,
-      shareCopyPath: shareFile.path,
+      shareLinkToken: crypto.randomBytes(18).toString("hex"),
       shareScope: "direct"
     }));
 
@@ -270,10 +275,49 @@ export const getSharedFileCopy = async (req, res) => {
       return res.status(404).json({ success: false, message: "Shared copy is missing from disk" });
     }
 
+    share.accessCount += 1;
+    share.lastAccessedAt = new Date();
+    share.downloadHistory = [
+      ...(share.downloadHistory || []),
+      {
+        userId: currentUserId,
+        ipAddress: req.ip || "",
+        accessedAt: new Date()
+      }
+    ].slice(-25);
+    if (share.oneTimeAccess && String(share.ownerId) !== String(currentUserId)) {
+      share.isActive = false;
+      share.revokedAt = new Date();
+      share.revokeReason = "One-time access link consumed";
+    }
+    await share.save();
+
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     return fs.createReadStream(share.shareCopyPath).pipe(res);
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getShareByLinkToken = async (req, res) => {
+  try {
+    const share = await fileShareModel
+      .findOne({ shareLinkToken: req.params.token })
+      .populate("ownerId", "name email")
+      .populate("recipientId", "name email")
+      .populate("groupId", "name inviteToken");
+
+    if (!share) {
+      return res.status(404).json({ success: false, message: "Share link not found" });
+    }
+
+    if (!share.isActive || (share.expiresAt && new Date(share.expiresAt).getTime() < Date.now())) {
+      return res.status(410).json({ success: false, message: "This share link is no longer active" });
+    }
+
+    return res.json({ success: true, share: mapShare(share, req.user?.id || "") });
+  } catch (error) {
+    return res.json({ success: false, message: error.message });
   }
 };
 
@@ -282,12 +326,15 @@ export const revokeShare = async (req, res) => {
     const ownerId = req.user.id;
     const { shareId } = req.params;
     const share = await fileShareModel.findOne({ _id: shareId, ownerId });
+    const { reason = "" } = req.body || {};
 
     if (!share) {
       return res.json({ success: false, message: "Share not found" });
     }
 
     share.isActive = false;
+    share.revokedAt = new Date();
+    share.revokeReason = reason || "Revoked by owner";
     await share.save();
 
     return res.json({ success: true, message: "Share revoked successfully" });

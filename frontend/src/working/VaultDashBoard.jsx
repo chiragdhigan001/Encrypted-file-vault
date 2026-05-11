@@ -17,6 +17,7 @@ import {
   Search,
   Share2,
   Shield,
+  History,
   Trash2,
   Upload,
   X
@@ -27,7 +28,11 @@ import { AppContext } from "../context/AppContext";
 import UploadModal from "./UploadModal";
 import FileShareModal from "./FileShareModal";
 import ShareWorkspace from "./ShareWorkspace";
-import { decryptCipherTextToBlob, getPreviewKind, openBlobDownload } from "./shareCrypto";
+import { getPreviewKind, openBlobDownload } from "./shareCrypto";
+import { decryptVaultFileBlob } from "./vaultCrypto";
+import SecurityCenterPanel from "./SecurityCenterPanel";
+import TrashPanel from "./TrashPanel";
+import VersionHistoryModal from "./VersionHistoryModal";
 
 const formatDate = (value) => {
   if (!value) return "Unknown";
@@ -51,6 +56,7 @@ export default function VaultDashboard({ onLock = () => {} }) {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [activeWorkspace, setActiveWorkspace] = useState("vault");
   const [shareTargetFile, setShareTargetFile] = useState(null);
+  const [versionTargetFile, setVersionTargetFile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [busyFileId, setBusyFileId] = useState("");
@@ -63,14 +69,25 @@ export default function VaultDashboard({ onLock = () => {} }) {
     url: ""
   });
 
-  const { backendUrl, masterKey, userData } = useContext(AppContext);
+  const { backendUrl, vaultSession, setVaultSession, userData } = useContext(AppContext);
 
   const folders = useMemo(() => ["All Files", ...new Set(files.map((file) => file.folder || "General"))], [files]);
 
   const filteredFiles = useMemo(() => {
     return files.filter((file) => {
       const normalizedSearch = searchQuery.trim().toLowerCase();
-      const matchesSearch = normalizedSearch ? (file.name || "").toLowerCase().includes(normalizedSearch) : true;
+      const aiText = [
+        file.name,
+        file.aiCategory,
+        ...(file.aiTags || []),
+        ...(file.aiSensitiveFindings || []),
+        file.aiSummary,
+        file.extractedTextPreview
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      const matchesSearch = normalizedSearch ? aiText.includes(normalizedSearch) : true;
       const matchesFolder = selectedFolder === "All Files" || file.folder === selectedFolder;
       return matchesSearch && matchesFolder;
     });
@@ -90,6 +107,7 @@ export default function VaultDashboard({ onLock = () => {} }) {
   }, [files]);
 
   const imageCount = useMemo(() => files.filter((file) => file.type?.startsWith("image/")).length, [files]);
+  const sensitiveCount = useMemo(() => files.filter((file) => (file.aiSensitiveFindings || []).length > 0).length, [files]);
 
   const closePreview = useCallback(() => {
     setPreviewState((current) => {
@@ -142,21 +160,21 @@ export default function VaultDashboard({ onLock = () => {} }) {
 
   const fetchEncryptedPayload = async (fileId) => {
     const response = await axios.get(`${backendUrl}/api/vault/file/${fileId}/download`, {
-      responseType: "text"
+      responseType: "arraybuffer"
     });
-    return response.data;
+    return response.data instanceof ArrayBuffer ? response.data : response.data.buffer;
   };
 
   const handleViewFile = async (file) => {
-    if (!masterKey) {
+    if (!vaultSession) {
       toast.error("Vault key expired. Please unlock the vault again.");
       return;
     }
 
     setBusyFileId(file.id);
     try {
-      const cipherText = await fetchEncryptedPayload(file.id);
-      const blob = decryptCipherTextToBlob(cipherText, masterKey, file.type);
+      const encryptedPayload = await fetchEncryptedPayload(file.id);
+      const blob = await decryptVaultFileBlob(encryptedPayload, file, vaultSession);
       const previewKind = getPreviewKind(file.type);
 
       if (previewKind === "binary") {
@@ -183,15 +201,15 @@ export default function VaultDashboard({ onLock = () => {} }) {
   };
 
   const handleDownloadFile = async (file) => {
-    if (!masterKey) {
+    if (!vaultSession) {
       toast.error("Vault key expired. Please unlock the vault again.");
       return;
     }
 
     setBusyFileId(file.id);
     try {
-      const cipherText = await fetchEncryptedPayload(file.id);
-      const blob = decryptCipherTextToBlob(cipherText, masterKey, file.type);
+      const encryptedPayload = await fetchEncryptedPayload(file.id);
+      const blob = await decryptVaultFileBlob(encryptedPayload, file, vaultSession);
       openBlobDownload(blob, file.name);
       toast.success("Decrypted file download started.");
     } catch (error) {
@@ -208,7 +226,7 @@ export default function VaultDashboard({ onLock = () => {} }) {
       if (data.success) {
         setFiles((current) => current.filter((file) => file.id !== fileId));
         if (previewFile?.id === fileId) closePreview();
-        toast.success("File deleted successfully.");
+        toast.success(data.message || "File moved to trash.");
       } else {
         toast.error(data.message || "Unable to delete file");
       }
@@ -222,7 +240,8 @@ export default function VaultDashboard({ onLock = () => {} }) {
   const summaryCards = [
     { label: "Stored Files", value: files.length, note: "Synced from your vault storage" },
     { label: "Protected Size", value: totalSizeLabel, note: "Encrypted before upload" },
-    { label: "Images", value: imageCount, note: "Preview directly after decrypting" }
+    { label: "Images", value: imageCount, note: "Preview directly after decrypting" },
+    { label: "Sensitive", value: sensitiveCount, note: "Locally tagged before upload" }
   ];
 
   const staggerContainer = {
@@ -257,7 +276,10 @@ export default function VaultDashboard({ onLock = () => {} }) {
             {isRefreshing ? <Loader2 size={16} className="spin" /> : <RefreshCw size={16} />}
             Refresh
           </button>
-          <button className="lock-btn" onClick={onLock}>
+          <button className="lock-btn" onClick={() => {
+            setVaultSession(null);
+            onLock();
+          }}>
             <LogOut size={16} />
             Lock Vault
           </button>
@@ -283,7 +305,7 @@ export default function VaultDashboard({ onLock = () => {} }) {
         </div>
       </motion.section>
 
-      <motion.section className="summary-grid" variants={staggerContainer} initial="hidden" animate="show">
+      <motion.section className="summary-grid summary-grid-wide" variants={staggerContainer} initial="hidden" animate="show">
         {summaryCards.map((card) => (
           <motion.article key={card.label} className="summary-card floating-card" variants={riseIn} whileHover={{ y: -4, scale: 1.01 }}>
             <p className="summary-label">{card.label}</p>
@@ -296,6 +318,7 @@ export default function VaultDashboard({ onLock = () => {} }) {
       <motion.section className="workspace-switch" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.35 }}>
         <button className={activeWorkspace === "vault" ? "active" : ""} onClick={() => setActiveWorkspace("vault")}>Vault Files</button>
         <button className={activeWorkspace === "sharing" ? "active" : ""} onClick={() => setActiveWorkspace("sharing")}>Sharing</button>
+        <button className={activeWorkspace === "security" ? "active" : ""} onClick={() => setActiveWorkspace("security")}>Security Center</button>
       </motion.section>
 
       {activeWorkspace === "vault" ? (
@@ -347,17 +370,27 @@ export default function VaultDashboard({ onLock = () => {} }) {
                       <div className="file-meta-block">
                         <strong className="file-name">{file.name}</strong>
                         <span className="file-date">Added {formatDate(file.uploadedAt)}</span>
+                        {file.aiSummary ? <small className="file-ai-summary">{file.aiSummary}</small> : null}
                       </div>
                     </div>
 
                     <div className="file-details">
                       <span>{file.size}</span>
                       <span>{file.folder || "General"}</span>
+                      {file.aiCategory ? <span>{file.aiCategory}</span> : null}
                       <span className="status-tag">
                         <Shield size={14} />
                         Encrypted
                       </span>
                     </div>
+
+                    {(file.aiTags?.length || file.aiSensitiveFindings?.length) ? (
+                      <div className="file-ai-tags">
+                        {[...(file.aiTags || []), ...(file.aiSensitiveFindings || []).map((tag) => `Risk: ${tag}`)].slice(0, 4).map((tag) => (
+                          <span key={tag} className="ai-tag">{tag}</span>
+                        ))}
+                      </div>
+                    ) : null}
 
                     <div className="file-actions">
                       <button className="action-btn" onClick={() => setShareTargetFile(file)} disabled={isBusy}>
@@ -372,6 +405,10 @@ export default function VaultDashboard({ onLock = () => {} }) {
                         <Download size={16} />
                         Download
                       </button>
+                      <button className="action-btn" onClick={() => setVersionTargetFile(file)} disabled={isBusy}>
+                        <History size={16} />
+                        Versions
+                      </button>
                       <button className="action-btn danger" onClick={() => handleDeleteFile(file.id)} disabled={isBusy}>
                         <Trash2 size={16} />
                         Delete
@@ -382,9 +419,16 @@ export default function VaultDashboard({ onLock = () => {} }) {
               })}
             </motion.div>
           )}
+
+          <TrashPanel
+            backendUrl={backendUrl}
+            onRestored={() => fetchFiles(true)}
+          />
         </motion.section>
-      ) : (
+      ) : activeWorkspace === "sharing" ? (
         <ShareWorkspace backendUrl={backendUrl} />
+      ) : (
+        <SecurityCenterPanel backendUrl={backendUrl} userData={userData} />
       )}
 
       {showUploadModal && (
@@ -401,9 +445,18 @@ export default function VaultDashboard({ onLock = () => {} }) {
         <FileShareModal
           file={shareTargetFile}
           backendUrl={backendUrl}
-          masterKey={masterKey}
+          vaultSession={vaultSession}
           onClose={() => setShareTargetFile(null)}
           onShared={() => setActiveWorkspace("sharing")}
+        />
+      )}
+
+      {versionTargetFile && (
+        <VersionHistoryModal
+          backendUrl={backendUrl}
+          file={versionTargetFile}
+          onClose={() => setVersionTargetFile(null)}
+          onRestored={() => fetchFiles(true)}
         />
       )}
 

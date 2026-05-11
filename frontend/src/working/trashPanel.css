@@ -1,0 +1,65 @@
+.trash-panel {
+  margin-top: 18px;
+  padding: 20px;
+  border-radius: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.trash-head h3,
+.trash-eyebrow {
+  margin: 0;
+}
+
+.trash-eyebrow {
+  margin-bottom: 8px;
+  color: #38bdf8;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+}
+
+.trash-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.trash-item,
+.trash-actions,
+.trash-empty {
+  display: flex;
+  align-items: center;
+}
+
+.trash-item {
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(2, 6, 23, 0.34);
+}
+
+.trash-item span {
+  display: block;
+  margin-top: 4px;
+  color: #94a3b8;
+}
+
+.trash-actions {
+  gap: 10px;
+}
+
+.trash-empty {
+  gap: 10px;
+  margin-top: 16px;
+  color: #94a3b8;
+}
+
+@media (max-width: 760px) {
+  .trash-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -108,7 +108,11 @@ export default function SharedInbox({ backendUrl, received, sent, refreshShares 
                 <button key={share.id} className={`shared-inbox-item ${(activeShare?.id || "") === share.id ? "active" : ""}`} onClick={() => setActiveShareId(share.id)}>
                   <strong>{share.fileName}</strong>
                   <span>{activeTab === "received" ? `From ${share.owner?.name || "User"}` : `To ${share.recipient?.name || "User"}`}</span>
-                  <small>{share.requiresPassword ? "Protected with share password" : "No password required"}</small>
+                  <small>
+                    {share.requiresPassword ? "Protected with share password" : "No password required"}
+                    {share.expiresAt ? ` • Expires ${new Date(share.expiresAt).toLocaleDateString()}` : ""}
+                    {share.oneTimeAccess ? " • One-time link" : ""}
+                  </small>
                 </button>
               ))
             )}
@@ -130,6 +134,8 @@ export default function SharedInbox({ backendUrl, received, sent, refreshShares 
                   <span>{activeShare.fileSize}</span>
                   <span>{activeShare.permission}</span>
                   <span>{activeShare.folder}</span>
+                  {activeShare.oneTimeAccess && <span>One-time access</span>}
+                  {activeShare.expiresAt && <span>Expires {new Date(activeShare.expiresAt).toLocaleDateString()}</span>}
                   {activeShare.requiresPassword && (
                     <span className="password-pill">
                       <KeyRound size={14} />

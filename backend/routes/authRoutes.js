@@ -4,6 +4,7 @@ import {
   register,
   login,
   logout,
+  logoutAllSessions,
   sendVerifyOTP,
   verifyEmail,
   isAuthenticated,
@@ -19,6 +20,7 @@ const authrouter = express.Router()
 authrouter.post('/register', register)
 authrouter.post('/login', login)
 authrouter.post('/logout', logout)
+authrouter.post('/logout-all', userAuth, logoutAllSessions)
 authrouter.post('/send-verify-otp', userAuth, sendVerifyOTP)
 authrouter.post('/verify-account', userAuth, verifyEmail)
 authrouter.get('/is-auth', userAuth, isAuthenticated)
