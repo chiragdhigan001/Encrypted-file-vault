@@ -13,17 +13,24 @@ import {
   Key,
   Download,
   CheckCircle2,
+  HardDrive,
+  Users,
+  Award,
+  CreditCard,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
-import { useContext } from "react";
+import { useNavigate } from "react-router-dom";
+import { useContext, useState } from "react";
 import { AppContext } from "../context/AppContext";
 import { toast } from "react-toastify";
 import axios from "axios";
+import CheckoutModal from "../working/CheckoutModal";
 
 
 const Home = () => {
   const navigate = useNavigate();
+
+  const [checkoutPlan, setCheckoutPlan] = useState(null);
 
   const features = [
     {
@@ -108,7 +115,7 @@ const Home = () => {
     "Encrypted backups",
   ];
 
-  const { userData, backendUrl, setUserData, setIsLoggedin, isLoggedin } =
+  const { userData, backendUrl, setUserData, setIsLoggedin, isLoggedin, getUserData } =
     useContext(AppContext);
 
   const sendVerificationOtp = async () => {
@@ -144,6 +151,20 @@ const Home = () => {
     }
   };
 
+  const upgradeToFree = async () => {
+    try {
+      axios.defaults.withCredentials = true;
+      const { data } = await axios.post(backendUrl + "/api/user/upgrade-plan", { plan: "free" });
+      if (data.success) {
+        toast.success(data.message || "Free plan activated!");
+      } else {
+        toast.error(data.message || "Unable to activate free plan.");
+      }
+    } catch (error) {
+      toast.error("Connection error.");
+    }
+  };
+
   const handleStartAction = () => {
     if (userData || isLoggedin) {
       navigate('/unlock-screen'); // Navigate to the vault dashboard
@@ -168,10 +189,10 @@ const Home = () => {
           </div>
 
           <nav className="navbar">
-            <Link to="#">Features</Link>
-            <Link to="#">Security</Link>
-            <Link to="#">Pricing</Link>
-            <Link to="#">Docs</Link>
+            <a href="#features">Features</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#security">Security</a>
+            <a href="/docs">Docs</a>
           </nav>
 
           <div className="actions">
@@ -263,7 +284,7 @@ const Home = () => {
                 Start encrypting
                 <ArrowRight size={20} />
               </button>
-              <button className="btn-secondary">View documentation</button>
+              <button className="btn-secondary" onClick={() => navigate("/docs")}>View documentation</button>
             </motion.div>
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
@@ -388,6 +409,148 @@ const Home = () => {
             })}
           </div>
         </div>
+      </section>
+
+      {/*---------------------------------------- Pricing --------------------------------------*/}
+
+      <section id="pricing" className="pricing-section">
+        <div className="pricing-glow" />
+
+        <div className="pricing-container">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="pricing-header-text"
+          >
+            <div className="pricing-badge">
+              <Award size={16} />
+              <span>Simple Pricing</span>
+            </div>
+            <h2>Choose the right plan for you</h2>
+            <p>All plans include client-side AES-256-GCM encryption, secure sharing, and zero-knowledge architecture.</p>
+          </motion.div>
+
+          <div className="pricing-plans">
+            {[
+              {
+                id: "free",
+                name: "Free",
+                price: 0,
+                storage: "1 GB",
+                period: "forever",
+                color: "#64748b",
+                gradient: "linear-gradient(135deg, #64748b, #475569)",
+                features: [
+                  "Up to 1 GB encrypted storage",
+                  "AES-256-GCM encryption",
+                  "Basic file sharing",
+                  "Community support"
+                ]
+              },
+              {
+                id: "basic",
+                name: "Basic",
+                price: 10,
+                storage: "10 GB",
+                period: "/month",
+                color: "#3b82f6",
+                gradient: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                popular: true,
+                features: [
+                  "Up to 10 GB encrypted storage",
+                  "AES-256-GCM encryption",
+                  "Advanced file sharing",
+                  "File versioning",
+                  "Priority support"
+                ]
+              },
+              {
+                id: "pro",
+                name: "Pro",
+                price: 100,
+                storage: "100 GB",
+                period: "/month",
+                color: "#8b5cf6",
+                gradient: "linear-gradient(135deg, #8b5cf6, #7c3aed)",
+                features: [
+                  "Up to 100 GB encrypted storage",
+                  "AES-256-GCM encryption",
+                  "Advanced file sharing",
+                  "File versioning",
+                  "Group management",
+                  "Audit logs & analytics",
+                  "Dedicated support"
+                ]
+              }
+            ].map((plan) => (
+              <motion.div
+                key={plan.id}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+                whileHover={{ y: -8 }}
+                className={`pricing-plan-card ${plan.popular ? "popular" : ""}`}
+              >
+                {plan.popular && <div className="pricing-popular-badge">Most Popular</div>}
+
+                <div className="pricing-plan-header">
+                  <div className="pricing-plan-icon" style={{ background: plan.gradient }}>
+                    {plan.id === "free" ? <HardDrive size={22} /> : plan.id === "basic" ? <Shield size={22} /> : <Award size={22} />}
+                  </div>
+                  <h3>{plan.name}</h3>
+                  <div className="pricing-plan-price">
+                    <strong>${plan.price}</strong>
+                    <span>{plan.period}</span>
+                  </div>
+                  <p className="pricing-plan-storage">{plan.storage} encrypted storage</p>
+                </div>
+
+                <ul className="pricing-plan-features">
+                  {plan.features.map((feature) => (
+                    <li key={feature}>
+                      <CheckCircle2 size={16} />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  className="pricing-plan-btn"
+                  style={{ "--plan-color": plan.color }}
+                  onClick={() => {
+                    if (!userData) {
+                      navigate("/login");
+                      return;
+                    }
+                    if (plan.price === 0) {
+                      upgradeToFree();
+                    } else {
+                      setCheckoutPlan(plan);
+                    }
+                  }}
+                >
+                  {plan.price === 0 ? "Get Started Free" : <><CreditCard size={16} /> Subscribe — ${plan.price}/mo</>}
+                </button>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {checkoutPlan && (
+          <CheckoutModal
+            backendUrl={backendUrl}
+            plan={checkoutPlan}
+            onClose={() => setCheckoutPlan(null)}
+            onComplete={() => {
+              setCheckoutPlan(null);
+              getUserData();
+              toast.success("Plan upgraded! Head to your vault to see the change.");
+            }}
+          />
+        )}
       </section>
 
       {/*---------------------------------------- Security --------------------------------------*/}

@@ -10,6 +10,8 @@
 
 .shared-inbox-shell {
   gap: 18px;
+  width: 100%;
+  min-width: 0;
 }
 
 .shared-inbox-sidebar {
@@ -82,6 +84,7 @@
 
 .shared-inbox-main {
   flex: 1;
+  min-width: 0;
   display: grid;
   gap: 16px;
 }

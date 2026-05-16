@@ -20,7 +20,9 @@ import {
   History,
   Trash2,
   Upload,
-  X
+  X,
+  HardDrive,
+  Zap
 } from "lucide-react";
 import { toast } from "react-toastify";
 import "./vaultDashboard.css";
@@ -33,6 +35,7 @@ import { decryptVaultFileBlob } from "./vaultCrypto";
 import SecurityCenterPanel from "./SecurityCenterPanel";
 import TrashPanel from "./TrashPanel";
 import VersionHistoryModal from "./VersionHistoryModal";
+import PricingModal from "./PricingModal";
 
 const formatDate = (value) => {
   if (!value) return "Unknown";
@@ -68,8 +71,10 @@ export default function VaultDashboard({ onLock = () => {} }) {
     content: "",
     url: ""
   });
+  const [storageInfo, setStorageInfo] = useState(null);
+  const [showPricing, setShowPricing] = useState(false);
 
-  const { backendUrl, vaultSession, setVaultSession, userData } = useContext(AppContext);
+  const { backendUrl, vaultSession, setVaultSession, userData, getUserData } = useContext(AppContext);
 
   const folders = useMemo(() => ["All Files", ...new Set(files.map((file) => file.folder || "General"))], [files]);
 
@@ -141,9 +146,21 @@ export default function VaultDashboard({ onLock = () => {} }) {
     }
   }, [backendUrl]);
 
+  const fetchStorageInfo = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${backendUrl}/api/vault/storage-info`);
+      if (data.success) {
+        setStorageInfo(data.storage);
+      }
+    } catch {
+      // non-critical
+    }
+  }, [backendUrl]);
+
   useEffect(() => {
     fetchFiles();
-  }, [fetchFiles]);
+    fetchStorageInfo();
+  }, [fetchFiles, fetchStorageInfo]);
 
   useEffect(() => {
     return () => {
@@ -237,6 +254,20 @@ export default function VaultDashboard({ onLock = () => {} }) {
     }
   };
 
+  const storagePercent = storageInfo?.usagePercent ?? 0;
+  const storagePlanLabel = storageInfo?.plan ?? "free";
+  const storageUsedLabel = (() => {
+    const bytes = storageInfo?.usedBytes ?? 0;
+    if (bytes >= 1073741824) return `${(bytes / 1073741824).toFixed(2)} GB`;
+    if (bytes >= 1048576) return `${(bytes / 1048576).toFixed(2)} MB`;
+    return `${(bytes / 1024).toFixed(2)} KB`;
+  })();
+  const storageLimitLabel = storageInfo
+    ? storageInfo.limitBytes >= 1073741824
+      ? `${(storageInfo.limitBytes / 1073741824).toFixed(0)} GB`
+      : `${(storageInfo.limitBytes / 1048576).toFixed(0)} MB`
+    : "";
+
   const summaryCards = [
     { label: "Stored Files", value: files.length, note: "Synced from your vault storage" },
     { label: "Protected Size", value: totalSizeLabel, note: "Encrypted before upload" },
@@ -313,6 +344,25 @@ export default function VaultDashboard({ onLock = () => {} }) {
             <span className="summary-note">{card.note}</span>
           </motion.article>
         ))}
+      </motion.section>
+
+      <motion.section className="storage-bar-section" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4 }}>
+        <div className="storage-bar-card">
+          <div className="storage-bar-info">
+            <HardDrive size={18} />
+            <div>
+              <strong>Storage</strong>
+              <span>{storageUsedLabel} of {storageLimitLabel} used ({Math.round(storagePercent)}%)</span>
+            </div>
+          </div>
+          <div className="storage-bar-track">
+            <div className="storage-bar-fill" style={{ width: `${Math.min(storagePercent, 100)}%` }} />
+          </div>
+          <button className="upgrade-btn" onClick={() => setShowPricing(true)}>
+            <Zap size={14} />
+            Upgrade Plan
+          </button>
+        </div>
       </motion.section>
 
       <motion.section className="workspace-switch" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.35 }}>
@@ -457,6 +507,18 @@ export default function VaultDashboard({ onLock = () => {} }) {
           file={versionTargetFile}
           onClose={() => setVersionTargetFile(null)}
           onRestored={() => fetchFiles(true)}
+        />
+      )}
+
+      {showPricing && (
+        <PricingModal
+          backendUrl={backendUrl}
+          currentPlan={storagePlanLabel}
+          onClose={() => setShowPricing(false)}
+          onUpgraded={() => {
+            fetchStorageInfo();
+            getUserData();
+          }}
         />
       )}
 

@@ -5,8 +5,6 @@ import { toast } from 'react-toastify';
 import { AppContext } from "../context/AppContext"; 
 import './uploadModal.css';
 import { encryptFileForVault } from './vaultCrypto';
-import { analyzeFileWithLocalAi } from './aiAssist';
-
 function UploadModal({ onClose, onUpload }) {
     const [file, setFile] = useState(null); 
     const [fileName, setFileName] = useState('');
@@ -65,7 +63,6 @@ function UploadModal({ onClose, onUpload }) {
         try {
             setProgress(30);
             const { encryptedBlob, metadata } = await encryptFileForVault(file, vaultSession.vaultKey);
-            const aiInsight = await analyzeFileWithLocalAi(file);
 
             setProgress(70);
             const formData = new FormData();
@@ -80,11 +77,6 @@ function UploadModal({ onClose, onUpload }) {
             formData.append('fileIv', metadata.fileIv);
             formData.append('wrapIv', metadata.wrapIv);
             formData.append('integrityHash', metadata.integrityHash);
-            formData.append('aiCategory', aiInsight.aiCategory);
-            formData.append('aiTags', JSON.stringify(aiInsight.aiTags || []));
-            formData.append('aiSensitiveFindings', JSON.stringify(aiInsight.aiSensitiveFindings || []));
-            formData.append('aiSummary', aiInsight.aiSummary || '');
-            formData.append('extractedTextPreview', aiInsight.extractedTextPreview || '');
 
             setProgress(85);
             axios.defaults.withCredentials = true;
@@ -106,12 +98,7 @@ function UploadModal({ onClose, onUpload }) {
                     encryptedDek: metadata.encryptedDek,
                     fileIv: metadata.fileIv,
                     wrapIv: metadata.wrapIv,
-                    integrityHash: metadata.integrityHash,
-                    aiCategory: aiInsight.aiCategory,
-                    aiTags: aiInsight.aiTags,
-                    aiSensitiveFindings: aiInsight.aiSensitiveFindings,
-                    aiSummary: aiInsight.aiSummary,
-                    extractedTextPreview: aiInsight.extractedTextPreview
+                    integrityHash: metadata.integrityHash
                 }); 
             } else {
                 toast.error(data.message);

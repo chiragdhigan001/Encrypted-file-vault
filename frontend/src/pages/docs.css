@@ -1,0 +1,285 @@
+.docs-page {
+  min-height: 100vh;
+  background: #0d1117;
+  color: #c9d1d9;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.docs-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(13, 17, 23, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid #30363d;
+}
+
+.docs-header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.docs-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #58a6ff;
+  font-weight: 700;
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+
+.docs-brand span {
+  color: #ffffff;
+}
+
+.docs-nav-links {
+  display: flex;
+  gap: 32px;
+}
+
+.docs-nav-links a {
+  color: #c9d1d9;
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.docs-nav-links a:hover {
+  color: #ffffff;
+}
+
+.docs-layout {
+  display: flex;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px 60px;
+  gap: 40px;
+}
+
+.docs-sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 96px;
+  align-self: start;
+}
+
+.docs-sidebar h3 {
+  color: #ffffff;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 16px;
+  color: #8b949e;
+}
+
+.docs-sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.docs-sidebar a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: #c9d1d9;
+  text-decoration: none;
+  font-size: 0.92rem;
+  transition: all 0.2s ease;
+}
+
+.docs-sidebar a:hover {
+  background: rgba(88, 166, 255, 0.08);
+  color: #58a6ff;
+}
+
+.docs-sidebar a svg {
+  flex-shrink: 0;
+  color: #8b949e;
+}
+
+.docs-sidebar a:hover svg {
+  color: #58a6ff;
+}
+
+.docs-content {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 48px;
+}
+
+.docs-section {
+  scroll-margin-top: 80px;
+}
+
+.docs-section-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #30363d;
+  color: #58a6ff;
+}
+
+.docs-section-head h2 {
+  color: #ffffff;
+  font-size: 1.6rem;
+  margin: 0;
+}
+
+.docs-section-body {
+  line-height: 1.75;
+  font-size: 1rem;
+}
+
+.docs-section-body p {
+  margin: 0 0 16px;
+}
+
+.docs-section-body ul,
+.docs-section-body ol {
+  margin: 0 0 16px;
+  padding-left: 24px;
+}
+
+.docs-section-body li {
+  margin-bottom: 8px;
+}
+
+.docs-section-body h4 {
+  color: #ffffff;
+  font-size: 1.05rem;
+  margin: 20px 0 8px;
+}
+
+.docs-section-body strong {
+  color: #e6edf3;
+}
+
+.docs-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(88, 166, 255, 0.06);
+  border: 1px solid rgba(88, 166, 255, 0.15);
+  color: #dbeafe;
+  font-size: 0.92rem;
+  margin: 20px 0;
+  line-height: 1.5;
+}
+
+.docs-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.docs-plans {
+  display: flex;
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.docs-plan {
+  flex: 1;
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid #30363d;
+  background: rgba(22, 27, 34, 0.5);
+  text-align: center;
+}
+
+.docs-plan strong {
+  display: block;
+  color: #ffffff;
+  font-size: 1.1rem;
+  margin-bottom: 4px;
+}
+
+.docs-plan span {
+  color: #8b949e;
+  font-size: 0.92rem;
+}
+
+.docs-footer-cta {
+  text-align: center;
+  padding: 40px;
+  border-radius: 20px;
+  border: 1px solid #30363d;
+  background: rgba(22, 27, 34, 0.4);
+  margin-top: 20px;
+}
+
+.docs-footer-cta p {
+  color: #ffffff;
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0 0 20px;
+}
+
+.docs-footer-cta button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px;
+  border: none;
+  border-radius: 10px;
+  background: #238636;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.docs-footer-cta button:hover {
+  background: #2ea043;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(35, 134, 54, 0.3);
+}
+
+@media (max-width: 860px) {
+  .docs-layout {
+    flex-direction: column;
+    padding: 24px 16px 40px;
+  }
+
+  .docs-sidebar {
+    width: 100%;
+    position: static;
+  }
+
+  .docs-sidebar ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .docs-sidebar a {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+  }
+
+  .docs-plans {
+    flex-direction: column;
+  }
+
+  .docs-nav-links {
+    gap: 16px;
+  }
+}

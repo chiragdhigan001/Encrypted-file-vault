@@ -1,7 +1,7 @@
 import "./login.css";
 import { useContext, useEffect, useRef, useState } from "react";
 import { FcGoogle } from "react-icons/fc";
-import { KeyRound, Shield } from "lucide-react";
+import { KeyRound, Shield, Eye, EyeOff } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -20,6 +20,7 @@ const Login = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [mfaToken, setMfaToken] = useState("");
   const [mfaCode, setMfaCode] = useState("");
   const [recoveryCode, setRecoveryCode] = useState("");
@@ -274,16 +275,27 @@ const Login = () => {
                 </Link>
               )}
             </div>
-            <input
-              onChange={(e) => setPassword(e.target.value)}
-              value={password}
-              id="password"
-              className="login-input"
-              type="password"
-              placeholder="Enter your password"
-              required
-              minLength={6}
-            />
+            <div className="password-input-wrap">
+              <input
+                onChange={(e) => setPassword(e.target.value)}
+                value={password}
+                id="password"
+                className="login-input"
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                required
+                minLength={6}
+              />
+              <button
+                type="button"
+                className="password-eye-btn"
+                onClick={() => setShowPassword((prev) => !prev)}
+                tabIndex={-1}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           <button className="login-button" type="submit">

@@ -70,6 +70,15 @@ const userSchema = new mongoose.Schema({
     lastLoginAt: {
         type: Date,
         default: null
+    },
+    storagePlan: {
+        type: String,
+        enum: ["free", "basic", "pro"],
+        default: "free"
+    },
+    storageUsedBytes: {
+        type: Number,
+        default: 0
     }
     
 });

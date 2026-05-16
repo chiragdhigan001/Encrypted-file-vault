@@ -11,13 +11,15 @@ import {
   restoreTrashFile,
   purgeTrashFile,
   getFileVersions,
-  restoreFileVersion
+  restoreFileVersion,
+  getStorageInfo
 } from "../controllers/vaultController.js";
 import userAuth from "../middleware/userAuth.js";
 import upload from "../middleware/multer.js";
 
 const vaultRouter = express.Router()
 
+vaultRouter.get("/storage-info", userAuth, getStorageInfo)
 vaultRouter.get("/status", userAuth, getVaultStatus)
 vaultRouter.post("/set-password", userAuth, setVaultPassword)
 vaultRouter.post("/unlock", userAuth, passwordUnlockVault)

@@ -4,9 +4,11 @@ import path from "path";
 import mongoose from "mongoose";
 import unlockVaultModel from "../models/unlockVaultModel.js";
 import fileModel from "../models/filemodel.js";
+import userModel from "../models/userModel.js";
 import { createVaultSalt, deriveVaultAuthVerifier } from "../utils/vaultCrypto.js";
 import { writeAuditLog } from "../utils/auditLog.js";
 import localStorageAdapter from "../infra/storage/localStorage.js";
+import { getPlanLimit, formatBytes } from "../utils/storagePlans.js";
 
 const RETENTION_DAYS = 30;
 
@@ -212,6 +214,18 @@ export const uploadFile = async (req, res) => {
       }
     })();
 
+    const user = await userModel.findById(userId).select("storagePlan storageUsedBytes");
+    const planLimit = getPlanLimit(user.storagePlan);
+    const fileBytes = Number(sizeBytes) || 0;
+    const newTotal = (user.storageUsedBytes || 0) + fileBytes;
+
+    if (newTotal > planLimit) {
+      return res.json({
+        success: false,
+        message: `Storage limit reached (${formatBytes(planLimit)}). Upgrade your plan to upload larger files.`
+      });
+    }
+
     const existingCurrentFile = await fileModel.findOne({
       userID: userId,
       name: originalName || file.originalname,
@@ -253,6 +267,8 @@ export const uploadFile = async (req, res) => {
       aiSummary: aiSummary || "",
       extractedTextPreview: extractedTextPreview || ""
     });
+
+    await userModel.findByIdAndUpdate(userId, { $inc: { storageUsedBytes: fileBytes } });
 
     await writeAuditLog({
       req,
@@ -418,6 +434,27 @@ export const restoreTrashFile = async (req, res) => {
   }
 };
 
+export const getStorageInfo = async (req, res) => {
+  try {
+    const user = await userModel.findById(req.user.id).select("storagePlan storageUsedBytes");
+    if (!user) {
+      return res.json({ success: false, message: "User not found" });
+    }
+    const planLimit = getPlanLimit(user.storagePlan);
+    return res.json({
+      success: true,
+      storage: {
+        plan: user.storagePlan,
+        usedBytes: user.storageUsedBytes || 0,
+        limitBytes: planLimit,
+        usagePercent: planLimit > 0 ? Math.min(100, ((user.storageUsedBytes || 0) / planLimit) * 100) : 0
+      }
+    });
+  } catch (error) {
+    return res.json({ success: false, message: error.message });
+  }
+};
+
 export const purgeTrashFile = async (req, res) => {
   try {
     const file = await fileModel.findOne({
@@ -429,7 +466,11 @@ export const purgeTrashFile = async (req, res) => {
       return res.json({ success: false, message: "File not found" });
     }
 
+    const freedBytes = Number(file.sizeBytes) || 0;
     await permanentlyDeleteFile(file);
+    if (freedBytes > 0) {
+      await userModel.findByIdAndUpdate(req.user.id, { $inc: { storageUsedBytes: -freedBytes } });
+    }
     await writeAuditLog({ req, userId: req.user.id, action: "vault_purge", status: "success", targetType: "file", targetId: String(req.params.fileId) });
     return res.json({ success: true, message: "File permanently deleted" });
   } catch (error) {

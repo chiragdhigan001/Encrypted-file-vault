@@ -10,6 +10,8 @@
 
 .group-workspace {
   gap: 18px;
+  width: 100%;
+  min-width: 0;
 }
 
 .group-sidebar {
@@ -118,6 +120,7 @@
 
 .group-main {
   flex: 1;
+  min-width: 0;
 }
 
 .group-card,

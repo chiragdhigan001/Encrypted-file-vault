@@ -1,5 +1,6 @@
 import { Routes, Route, useLocation } from "react-router-dom"
 import Home from './pages/Home.jsx'
+import Docs from './pages/Docs.jsx'
 import Login from "./pages/Login.jsx"
 import Logout from "./pages/Logout"
 import EmailVerify from "./pages/EmailVerify.jsx"
@@ -27,6 +28,7 @@ const App = () => {
       <ToastContainer />
         <Routes>
             <Route path="/" element={<Home />}/>
+            <Route path="docs" element={<Docs />}/>
             <Route path="login" element={<Login />}/>
             <Route path="logout" element={<Logout />}/>
             <Route path="email-verify" element={<EmailVerify />}/>
