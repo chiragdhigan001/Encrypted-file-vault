@@ -180,6 +180,8 @@
 .selected-user-chip strong {
   display: block;
   color: #f8fafc;
+  margin-left: -100px;
+  font-size: 15px;
 }
 
 .file-share-result span,

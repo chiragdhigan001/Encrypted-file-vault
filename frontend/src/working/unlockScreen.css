@@ -172,23 +172,27 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 82px;
-  height: 82px;
-  margin-bottom: 16px;
-  border-radius: 24px;
+  width: 48px;        /* Scaled down from 64px */
+  height: 48px;       /* Scaled down from 64px */
+  flex-shrink: 0;     /* Keeps it a perfect circle */
+  margin-bottom: 16px; /* Keeps a nice gap below it */
+  border-radius: 50%; 
   background:
     linear-gradient(135deg, rgba(56, 189, 248, 0.16), rgba(37, 99, 235, 0.12)),
     rgba(15, 23, 42, 0.9);
   border: 1px solid rgba(96, 165, 250, 0.18);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 18px 36px rgba(2, 6, 23, 0.35);
+    0 12px 24px rgba(2, 6, 23, 0.3); /* Slightly reduced shadow for smaller size */
 }
 
 .shield-icon {
-  width: 38px;
-  height: 38px;
+  display: block;
+  width: 24px;
+  height: 24px;
   color: #60a5fa;
+  margin: 0 !important;  /* 👈 Strips out any hidden external margins pushing it off-center */
+  padding: 0 !important; /* 👈 Strips out any hidden external padding */
 }
 
 .vault-title {
@@ -237,7 +241,12 @@
 }
 
 .vault-input {
+  box-sizing: border-box; /* 👈 Crucial: Ensures padding doesn't expand the element beyond 100% width */
   width: 100%;
+  /* Optional: If the parent container doesn't have side padding, you can restrict the input width like this: */
+  /* max-width: calc(100% - 32px); */ 
+  /* margin: 0 auto; */
+  
   padding: 15px 48px 15px 48px;
   border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 16px;

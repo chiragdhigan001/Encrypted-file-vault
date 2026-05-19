@@ -90,6 +90,7 @@
 .group-share-item strong,
 .group-member-role-item strong {
   color: #f8fafc;
+  padding-right: 5px;
 }
 
 .group-item span,
@@ -109,13 +110,30 @@
 
 .group-role-pill {
   display: inline-flex;
+  align-items: center;    /* Centers the new SVG and text vertically */
+  gap: 6px;               /* Adds a clean gap between the SVG icon and the text */
   width: fit-content;
-  padding: 5px 10px;
+  flex-shrink: 0;         /* 👈 Forces the browser to stop squishing it into an oval */
+  padding: 5px 12px;      /* Slightly adjusted horizontal padding for better balance */
   border-radius: 999px;
   background: rgba(2, 6, 23, 0.55);
   color: #cbd5e1;
   text-transform: capitalize;
   font-size: 0.78rem;
+  border: 1px solid rgba(148, 163, 184, 0.1); /* Optional: subtle border to match your UI */
+}
+
+/* 👑 Injects the SVG Icon automatically using CSS */
+.group-role-pill::before {
+  content: "";
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background-color: currentColor; /* Inherits the #cbd5e1 text color automatically */
+  
+  /* Using a clean Lucide Crown SVG path as a mask */
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z'/%3E%3Cpath d='M3 20h18'/%3E%3C/svg%3E") no-repeat center / contain;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z'/%3E%3Cpath d='M3 20h18'/%3E%3C/svg%3E") no-repeat center / contain;
 }
 
 .group-main {
