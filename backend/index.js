@@ -14,8 +14,9 @@ import rateLimit from "./middleware/rateLimit.js";
 import logger from "./utils/logger.js";
 
 const app = express();
-const port = process.env.PORT || 4000;
 app.set("trust proxy", 1); // fixed
+const port = process.env.PORT || 4000;
+
 // DEBUG
 console.log("GOOGLE CLIENT ID:", process.env.GOOGLE_CLIENT_ID);
 connectDb();
